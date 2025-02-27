@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Food Chain Simulator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .simulation-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        label {
+            font-weight: bold;
+        }
+        input, button {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            margin: 10px 0;
+            gap: 10px;
+        }
+        .stat-card {
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+            min-width: 120px;
+        }
+        .ecosystem-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        #ecosystem {
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+        canvas {
+            max-width: 100%;
+        }
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 10px 0;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+        }
+        #info-panel {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            line-height: 1.5;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .ecosystem-container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Virtual Food Chain Simulator</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="initial-plants">Initial Plants:</label>
+                <input type="number" id="initial-plants" min="5" max="100" value="50">
+            </div>
+            <div class="control-group">
+                <label for="initial-herbivores">Initial Herbivores:</label>
+                <input type="number" id="initial-herbivores" min="1" max="50" value="20">
+            </div>
+            <div class="control-group">
+                <label for="initial-carnivores">Initial Carnivores:</label>
+                <input type="number" id="initial-carnivores" min="1" max="20" value="5">
+            </div>
+            <div class="control-group">
+                <label for="simulation-speed">Simulation Speed:</label>
+                <input type="range" id="simulation-speed" min="1" max="10" value="5">
+            </div>
+            <div class="control-group">
+                <button id="start-btn">Start Simulation</button>
+                <button id="reset-btn">Reset</button>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card" style="background-color: #4CAF50;">
+                Plants: <span id="plants-count">0</span>
+            </div>
+            <div class="stat-card" style="background-color: #2196F3;">
+                Herbivores: <span id="herbivores-count">0</span>
+            </div>
+            <div class="stat-card" style="background-color: #f44336;">
+                Carnivores: <span id="carnivores-count">0</span>
+            </div>
+            <div class="stat-card" style="background-color: #FF9800;">
+                Day: <span id="day-count">0</span>
+            </div>
+            <div class="stat-card" style="background-color: #9C27B0;">
+                Sunlight: <span id="sunlight-intensity">1.00</span>
+            </div>
+        </div>
+        
+        <div class="ecosystem-container">
+            <div style="flex: 1;">
+                <canvas id="ecosystem" width="500" height="500"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #4CAF50;"></div>
+                        <span>Plants</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #2196F3;"></div>
+                        <span>Herbivores</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #f44336;"></div>
+                        <span>Carnivores</span>
+                    </div>
+                </div>
+            </div>
+            <div style="flex: 1;">
+                <canvas id="population-chart"></canvas>
+            </div>
+        </div>
+        
+        <div id="info-panel">
+            <h3>Ecosystem Information</h3>
+            <p>This simulator models a simple food chain ecosystem with three trophic levels:</p>
+            <ul>
+                <li><strong>Plants (Producers):</strong> Generate energy through photosynthesis and are affected by sunlight intensity.</li>
+                <li><strong>Herbivores (Primary Consumers):</strong> Consume plants and convert plant energy with ~70% efficiency.</li>
+                <li><strong>Carnivores (Secondary Consumers):</strong> Hunt herbivores with a 70% success rate and convert prey energy with ~60% efficiency.</li>
+            </ul>
+            <p>Watch how population dynamics evolve over time, with characteristic predator-prey cycles emerging naturally from the interactions.</p>
+            <p><strong>Ecological Constraints:</strong> Herbivores won't go extinct unless plants drop below 10, and carnivores won't go extinct unless herbivores drop below 15.</p>
+        </div>
+    </div>
+
+    <script>
+        // Ecosystem class to manage the simulation
+        class Ecosystem {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.width = this.canvas.width;
+                this.height = this.canvas.height;
+                
+                this.plants = [];
+                this.herbivores = [];
+                this.carnivores = [];
+                
+                this.day = 0;
+                this.sunlightIntensity = 1.0;
+                this.sunlightCycle = 0;
+                
+                this.simulationRunning = false;
+                this.simulationSpeed = 5;
+                
+                // Ecological thresholds
+                this.plantThreshold = 10;    // Herbivores won't reach 0 unless plants < 10
+                this.herbivoreThreshold = 15; // Carnivores won't reach 0 unless herbivores < 15
+                
+                this.populationHistory = {
+                    plants: [],
+                    herbivores: [],
+                    carnivores: []
+                };
+                
+                this.setupChart();
+            }
+            
+            setupChart() {
+                const ctx = document.getElementById('population-chart').getContext('2d');
+                this.chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Plants',
+                            data: [],
+                            borderColor: '#4CAF50',
+                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                            tension: 0.1
+                        }, {
+                            label: 'Herbivores',
+                            data: [],
+                            borderColor: '#2196F3',
+                            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                            tension: 0.1
+                        }, {
+                            label: 'Carnivores',
+                            data: [],
+                            borderColor: '#f44336',
+                            backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        },
+                        animation: {
+                            duration: 0
+                        }
+                    }
+                });
+            }
+            
+            initialize(initialPlants, initialHerbivores, initialCarnivores) {
+                this.plants = [];
+                this.herbivores = [];
+                this.carnivores = [];
+                this.day = 0;
+                this.sunlightIntensity = 1.0;
+                this.sunlightCycle = 0;
+                
+                this.populationHistory = {
+                    plants: [],
+                    herbivores: [],
+                    carnivores: []
+                };
+                
+                // Create initial organisms
+                for (let i = 0; i < initialPlants; i++) {
+                    this.plants.push(new Plant(
+                        Math.random() * this.width,
+                        Math.random() * this.height,
+                        10 + Math.random() * 10
+                    ));
+                }
+                
+                for (let i = 0; i < initialHerbivores; i++) {
+                    this.herbivores.push(new Herbivore(
+                        Math.random() * this.width,
+                        Math.random() * this.height,
+                        15 + Math.random() * 10,
+                        100 + Math.random() * 100
+                    ));
+                }
+                
+                for (let i = 0; i < initialCarnivores; i++) {
+                    this.carnivores.push(new Carnivore(
+                        Math.random() * this.width,
+                        Math.random() * this.height,
+                        20 + Math.random() * 15,
+                        150 + Math.random() * 150
+                    ));
+                }
+                
+                this.updateStats();
+                this.render();
+                this.updateChart();
+            }
+            
+            start() {
+                if (!this.simulationRunning) {
+                    this.simulationRunning = true;
+                    this.simulate();
+                }
+            }
+            
+            stop() {
+                this.simulationRunning = false;
+            }
+            
+            setSpeed(speed) {
+                this.simulationSpeed = speed;
+            }
+            
+            simulate() {
+                if (!this.simulationRunning) return;
+                
+                this.day++;
+                
+                // Adjust sunlight intensity (seasonal cycle)
+                this.sunlightCycle += 0.05;
+                this.sunlightIntensity = 0.7 + 0.6 * Math.sin(this.sunlightCycle);
+                
+                // Plants: Growth and reproduction
+                if (Math.random() < this.sunlightIntensity * 0.5 && this.plants.length < 200) {
+                    const parentPlant = this.plants[Math.floor(Math.random() * this.plants.length)];
+                    if (parentPlant) {
+                        const newX = parentPlant.x + (Math.random() * 40 - 20);
+                        const newY = parentPlant.y + (Math.random() * 40 - 20);
+                        if (newX > 0 && newX < this.width && newY > 0 && newY < this.height) {
+                            this.plants.push(new Plant(newX, newY, 5 + Math.random() * 5));
+                        }
+                    }
+                }
+                
+                // Plants growth boost if population is too low
+                if (this.plants.length < 5 && Math.random() < 0.5) {
+                    const x = Math.random() * this.width;
+                    const y = Math.random() * this.height;
+                    this.plants.push(new Plant(x, y, 10 + Math.random() * 10));
+                }
+                
+                // Herbivore behavior and lifecycle
+                const lowPlants = this.plants.length < this.plantThreshold;
+                
+                // Create a herbivore if population is at risk of extinction and plants are sufficient
+                if (this.herbivores.length === 1 && !lowPlants && Math.random() < 0.3) {
+                    const x = Math.random() * this.width;
+                    const y = Math.random() * this.height;
+                    this.herbivores.push(new Herbivore(x, y, 15 + Math.random() * 10, 150));
+                }
+                
+                // Herbivores: Movement, feeding, reproduction and death
+                for (let i = this.herbivores.length - 1; i >= 0; i--) {
+                    const herbivore = this.herbivores[i];
+                    
+                    // Movement
+                    herbivore.move(this.width, this.height);
+                    
+                    // Feeding
+                    for (let j = this.plants.length - 1; j >= 0; j--) {
+                        const plant = this.plants[j];
+                        const distance = Math.sqrt(
+                            Math.pow(herbivore.x - plant.x, 2) + 
+                            Math.pow(herbivore.y - plant.y, 2)
+                        );
+                        
+                        if (distance < herbivore.size + plant.size) {
+                            herbivore.energy += plant.size * 10;
+                            this.plants.splice(j, 1);
+                            break;
+                        }
+                    }
+                    
+                    // Reproduction
+                    if (herbivore.energy > 200 && Math.random() < 0.2) {
+                        herbivore.energy /= 2;
+                        this.herbivores.push(new Herbivore(
+                            herbivore.x + (Math.random() * 20 - 10),
+                            herbivore.y + (Math.random() * 20 - 10),
+                            herbivore.size * 0.8,
+                            herbivore.energy
+                        ));
+                    }
+                    
+                    // Energy decrease
+                    const energyLoss = lowPlants ? 0.5 + herbivore.size * 0.05 : 1 + herbivore.size * 0.1;
+                    herbivore.energy -= energyLoss;
+                    
+                    // Death only if plants are below threshold or energy is very low
+                    if ((lowPlants && herbivore.energy <= 0) || herbivore.energy <= -50) {
+                        this.herbivores.splice(i, 1);
+                    }
+                }
+                
+                // Carnivore behavior and lifecycle
+                const lowHerbivores = this.herbivores.length < this.herbivoreThreshold;
+                
+                // Create a carnivore if population is at risk of extinction and herbivores are sufficient
+                if (this.carnivores.length === 1 && !lowHerbivores && Math.random() < 0.3) {
+                    const x = Math.random() * this.width;
+                    const y = Math.random() * this.height;
+                    this.carnivores.push(new Carnivore(x, y, 20 + Math.random() * 15, 200));
+                }
+                
+                // Carnivores: Movement, hunting, reproduction and death
+                for (let i = this.carnivores.length - 1; i >= 0; i--) {
+                    const carnivore = this.carnivores[i];
+                    
+                    // Movement
+                    carnivore.move(this.width, this.height);
+                    
+                    // Hunting
+                    for (let j = this.herbivores.length - 1; j >= 0; j--) {
+                        const herbivore = this.herbivores[j];
+                        const distance = Math.sqrt(
+                            Math.pow(carnivore.x - herbivore.x, 2) + 
+                            Math.pow(carnivore.y - herbivore.y, 2)
+                        );
+                        
+                        if (distance < carnivore.size + herbivore.size) {
+                            // 70% chance of successful hunt
+                            if (Math.random() < 0.7) {
+                                carnivore.energy += herbivore.size * 20;
+                                this.herbivores.splice(j, 1);
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Reproduction
+                    if (carnivore.energy > 300 && Math.random() < 0.15 && this.carnivores.length < 30) {
+                        carnivore.energy /= 2;
+                        this.carnivores.push(new Carnivore(
+                            carnivore.x + (Math.random() * 20 - 10),
+                            carnivore.y + (Math.random() * 20 - 10),
+                            carnivore.size * 0.9,
+                            carnivore.energy
+                        ));
+                    }
+                    
+                    // Energy decrease
+                    const energyLoss = lowHerbivores ? 0.75 + carnivore.size * 0.07 : 1.5 + carnivore.size * 0.15;
+                    carnivore.energy -= energyLoss;
+                    
+                    // Death only if herbivores are below threshold or energy is very low
+                    if ((lowHerbivores && carnivore.energy <= 0) || carnivore.energy <= -75) {
+                        this.carnivores.splice(i, 1);
+                    }
+                }
+                
+                this.updateStats();
+                this.render();
+                
+                // Update chart every 5 days to avoid performance issues
+                if (this.day % 5 === 0) {
+                    this.updateChart();
+                }
+                
+                // Continue simulation loop
+                setTimeout(() => this.simulate(), 1000 / this.simulationSpeed);
+            }
+            
+            render() {
+                // Clear canvas
+                this.ctx.clearRect(0, 0, this.width, this.height);
+                
+                // Draw plants
+                for (const plant of this.plants) {
+                    this.ctx.fillStyle = '#4CAF50';
+                    this.ctx.beginPath();
+                    this.ctx.arc(plant.x, plant.y, plant.size, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+                
+                // Draw herbivores
+                for (const herbivore of this.herbivores) {
+                    // Show energy level by transparency
+                    const energyRatio = Math.min(1, Math.max(0.3, herbivore.energy / 200));
+                    this.ctx.fillStyle = `rgba(33, 150, 243, ${energyRatio})`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(herbivore.x, herbivore.y, herbivore.size, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+                
+                // Draw carnivores
+                for (const carnivore of this.carnivores) {
+                    // Show energy level by transparency
+                    const energyRatio = Math.min(1, Math.max(0.3, carnivore.energy / 300));
+                    this.ctx.fillStyle = `rgba(244, 67, 54, ${energyRatio})`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(carnivore.x, carnivore.y, carnivore.size, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+            }
+            
+            updateStats() {
+                document.getElementById('plants-count').textContent = this.plants.length;
+                document.getElementById('herbivores-count').textContent = this.herbivores.length;
+                document.getElementById('carnivores-count').textContent = this.carnivores.length;
+                document.getElementById('day-count').textContent = this.day;
+                document.getElementById('sunlight-intensity').textContent = this.sunlightIntensity.toFixed(2);
+                
+                this.populationHistory.plants.push(this.plants.length);
+                this.populationHistory.herbivores.push(this.herbivores.length);
+                this.populationHistory.carnivores.push(this.carnivores.length);
+            }
+            
+            updateChart() {
+                // Keep only last 100 days of data for performance
+                const dataLength = this.populationHistory.plants.length;
+                const maxDataPoints = 100;
+                
+                let startIdx = 0;
+                if (dataLength > maxDataPoints) {
+                    startIdx = dataLength - maxDataPoints;
+                }
+                
+                const labels = [];
+                for (let i = startIdx; i < dataLength; i++) {
+                    labels.push('Day ' + i);
+                }
+                
+                this.chart.data.labels = labels;
+                this.chart.data.datasets[0].data = this.populationHistory.plants.slice(startIdx);
+                this.chart.data.datasets[1].data = this.populationHistory.herbivores.slice(startIdx);
+                this.chart.data.datasets[2].data = this.populationHistory.carnivores.slice(startIdx);
+                this.chart.update();
+            }
+        }
+        
+        // Plant class
+        class Plant {
+            constructor(x, y, size) {
+                this.x = x;
+                this.y = y;
+                this.size = size;
+            }
+        }
+        
+        // Herbivore class
+        class Herbivore {
+            constructor(x, y, size, energy) {
+                this.x = x;
+                this.y = y;
+                this.size = size;
+                this.energy = energy;
+                this.direction = Math.random() * Math.PI * 2;
+                this.speed = 1 + Math.random();
+            }
+            
+            move(maxWidth, maxHeight) {
+                // Randomly change direction occasionally
+                if (Math.random() < 0.1) {
+                    this.direction += (Math.random() - 0.5) * Math.PI / 2;
+                }
+                
+                // Move in current direction
+                this.x += Math.cos(this.direction) * this.speed;
+                this.y += Math.sin(this.direction) * this.speed;
+                
+                // Bounce off walls
+                if (this.x < 0 || this.x > maxWidth) {
+                    this.direction = Math.PI - this.direction;
+                    this.x = Math.max(0, Math.min(maxWidth, this.x));
+                }
+                if (this.y < 0 || this.y > maxHeight) {
+                    this.direction = -this.direction;
+                    this.y = Math.max(0, Math.min(maxHeight, this.y));
+                }
+            }
+        }
+        
+        // Carnivore class
+        class Carnivore {
+            constructor(x, y, size, energy) {
+                this.x = x;
+                this.y = y;
+                this.size = size;
+                this.energy = energy;
+                this.direction = Math.random() * Math.PI * 2;
+                this.speed = 1.5 + Math.random();
+            }
+            
+            move(maxWidth, maxHeight) {
+                // Randomly change direction occasionally
+                if (Math.random() < 0.05) {
+                    this.direction += (Math.random() - 0.5) * Math.PI / 3;
+                }
+                
+                // Move in current direction
+                this.x += Math.cos(this.direction) * this.speed;
+                this.y += Math.sin(this.direction) * this.speed;
+                
+                // Bounce off walls
+                if (this.x < 0 || this.x > maxWidth) {
+                    this.direction = Math.PI - this.direction;
+                    this.x = Math.max(0, Math.min(maxWidth, this.x));
+                }
+                if (this.y < 0 || this.y > maxHeight) {
+                    this.direction = -this.direction;
+                    this.y = Math.max(0, Math.min(maxHeight, this.y));
+                }
+            }
+        }
+        
+        // Initialize the simulator
+        const ecosystem = new Ecosystem('ecosystem');
+        
+        // Event listeners
+        document.getElementById('start-btn').addEventListener('click', function() {
+            if (this.textContent === 'Start Simulation') {
+                ecosystem.start();
+                this.textContent = 'Pause Simulation';
+            } else {
+                ecosystem.stop();
+                this.textContent = 'Start Simulation';
+            }
+        });
+        
+        document.getElementById('reset-btn').addEventListener('click', function() {
+            ecosystem.stop();
+            document.getElementById('start-btn').textContent = 'Start Simulation';
+            
+            const initialPlants = parseInt(document.getElementById('initial-plants').value);
+            const initialHerbivores = parseInt(document.getElementById('initial-herbivores').value);
+            const initialCarnivores = parseInt(document.getElementById('initial-carnivores').value);
+            
+            ecosystem.initialize(initialPlants, initialHerbivores, initialCarnivores);
+        });
+        
+        document.getElementById('simulation-speed').addEventListener('input', function() {
+            ecosystem.setSpeed(parseInt(this.value));
+        });
+        
+        // Initialize the simulation on page load
+        window.addEventListener('load', function() {
+            const initialPlants = parseInt(document.getElementById('initial-plants').value);
+            const initialHerbivores = parseInt(document.getElementById('initial-herbivores').value);
+            const initialCarnivores = parseInt(document.getElementById('initial-carnivores').value);
+            
+            ecosystem.initialize(initialPlants, initialHerbivores, initialCarnivores);
+        });
+    </script>
+</body>
+</html>
